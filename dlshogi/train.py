@@ -228,7 +228,7 @@ def main(*argv):
 
     # for SWA update_bn
     def hcpe_loader(data, batchsize):
-        for x1, x2, t1, t2, value in Hcpe3DataLoader(data, batchsize, device):
+        for x1, x2, t1, t2, value, _ in Hcpe3DataLoader(data, batchsize, device):
             yield {"x1": x1, "x2": x2}
 
     def accuracy(y, t):
@@ -372,7 +372,7 @@ def main(*argv):
             if t % eval_interval == 0:
                 model.eval()
 
-                x1, x2, t1, t2, value = test_dataloader.sample()
+                x1, x2, t1, t2, value, _ = test_dataloader.sample()
                 with torch.no_grad():
                     y1, y2 = model(x1, x2)
 

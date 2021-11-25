@@ -73,7 +73,7 @@ class DataLoader:
                 self.torch_move.clone(),
                 self.torch_result.clone(),
                 self.torch_value.clone(),
-                self.legal_moves.clone(),
+                self.torch_legal_moves.clone(),
             )
         else:
             return (
@@ -82,7 +82,7 @@ class DataLoader:
                 self.torch_move.to(self.device),
                 self.torch_result.to(self.device),
                 self.torch_value.to(self.device),
-                self.legal_moves.to(self.device),
+                self.torch_legal_moves.to(self.device),
             )
 
     def sample(self):
@@ -269,5 +269,5 @@ class Hcpe3DataLoader(DataLoader):
             self.torch_probability.to(self.device),
             self.torch_result.to(self.device),
             self.torch_value.to(self.device),
-            self.legal_moves.to(self.device),
+            self.torch_legal_moves.to(self.device),
         )

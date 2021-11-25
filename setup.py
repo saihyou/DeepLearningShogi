@@ -24,7 +24,7 @@ ext_modules = [
          'cppshogi/cppshogi.cpp', 'cppshogi/python_module.cpp', 'cppshogi/bitboard.cpp', 'cppshogi/book.cpp', 'cppshogi/common.cpp', 'cppshogi/generateMoves.cpp', 'cppshogi/hand.cpp', 'cppshogi/init.cpp', 'cppshogi/move.cpp', 'cppshogi/mt64bit.cpp', 'cppshogi/position.cpp', 'cppshogi/search.cpp', 'cppshogi/square.cpp', 'cppshogi/usi.cpp'],
         language='c++',
         include_dirs = ["cppshogi"],
-        define_macros=[('HAVE_SSE4', None), ('HAVE_SSE42', None), ('HAVE_AVX2', None)])
+        define_macros=[('HAVE_SSE4', None), ('HAVE_SSE42', None), ('HAVE_AVX2', None), ('LEARN', None)])
 ]
 
 setup(

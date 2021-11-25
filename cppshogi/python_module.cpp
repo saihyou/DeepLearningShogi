@@ -39,18 +39,19 @@ void __hcpe_decode_with_value(const size_t len, char *ndhcpe, char *ndfeatures1,
   int64_t *move = reinterpret_cast<int64_t *>(ndmove);
   float *result = reinterpret_cast<float *>(ndresult);
   float *value = reinterpret_cast<float *>(ndvalue);
-  bool *legal_moves = reinterpret_cast<bool *>(ndlegal_moves);
+  auto legal_moves =
+      reinterpret_cast<bool(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlegal_moves);
 
   // set all zero
   std::fill_n((float *)features1, sizeof(features1_t) / sizeof(float) * len,
               0.0f);
   std::fill_n((float *)features2, sizeof(features2_t) / sizeof(float) * len,
               0.0f);
-  std::fill_n(legal_moves, 9 * 9 * MAX_MOVE_LABEL_NUM * len, false);
+  std::fill_n((bool *)legal_moves, 9 * 9 * MAX_MOVE_LABEL_NUM * len, false);
 
   Position position;
-  for (size_t i = 0; i < len;
-       i++, hcpe++, features1++, features2++, value++, move++, result++) {
+  for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++,
+              move++, result++, legal_moves++) {
     position.set(hcpe->hcp);
 
     // input features
@@ -69,7 +70,7 @@ void __hcpe_decode_with_value(const size_t len, char *ndhcpe, char *ndfeatures1,
     for (; !ml.end(); ++ml) {
       auto m = static_cast<u16>(ml.move().value());
       const auto label = make_move_label(m, position.turn());
-      legal_moves[label] = true;
+      (*legal_moves)[label] = true;
     }
   }
 }
@@ -320,7 +321,8 @@ void __hcpe3_decode_with_value(const size_t len, char *ndindex,
       reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability);
   float *result = reinterpret_cast<float *>(ndresult);
   float *value = reinterpret_cast<float *>(ndvalue);
-  bool *legal_moves = reinterpret_cast<bool *>(ndlegal_moves);
+  auto legal_moves =
+      reinterpret_cast<bool(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlegal_moves);
 
   // set all zero
   std::fill_n((float *)features1, sizeof(features1_t) / sizeof(float) * len,
@@ -328,11 +330,11 @@ void __hcpe3_decode_with_value(const size_t len, char *ndindex,
   std::fill_n((float *)features2, sizeof(features2_t) / sizeof(float) * len,
               0.0f);
   std::fill_n((float *)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
-  std::fill_n(legal_moves, 9 * 9 * MAX_MOVE_LABEL_NUM * len, false);
+  std::fill_n((bool *)legal_moves, 9 * 9 * MAX_MOVE_LABEL_NUM * len, false);
 
   Position position;
   for (size_t i = 0; i < len; i++, index++, features1++, features2++, value++,
-              probability++, result++) {
+              probability++, result++, legal_moves++) {
     auto &hcpe3 = trainingData[*index];
 
     position.set(hcpe3.hcp);
@@ -357,7 +359,7 @@ void __hcpe3_decode_with_value(const size_t len, char *ndindex,
     for (; !ml.end(); ++ml) {
       auto m = static_cast<u16>(ml.move().value());
       const auto label = make_move_label(m, position.turn());
-      legal_moves[label] = true;
+      (*legal_moves)[label] = true;
     }
   }
 }
