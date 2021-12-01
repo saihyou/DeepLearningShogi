@@ -343,10 +343,32 @@ void __hcpe3_decode_with_value(const size_t len, char *ndindex,
     make_input_features(position, features1, features2);
 
     // move probability
-    for (const auto kv : hcpe3.candidates) {
-      const auto label = make_move_label(kv.first, position.turn());
-      assert(label < 9 * 9 * MAX_MOVE_LABEL_NUM);
-      (*probability)[label] = kv.second / hcpe3.count;
+    if (hcpe3.candidates.size() == 1) {
+      const auto c = hcpe3.candidates.begin();
+      MoveList<LegalAll> ml(position);
+      auto s = ml.size();
+      float best_prob = 1.0f;
+      float others = 0.0f;
+      if (s > 1) {
+        others = 0.00001f;
+        best_prob = 1.0f - others * (s - 1);
+      }
+      auto best_label = make_move_label(c->first, position.turn());
+      for (; !ml.end(); ++ml) {
+        auto m = static_cast<u16>(ml.move().value());
+        auto label = make_move_label(m, position.turn());
+        if (label == best_label) {
+          (*probability)[label] = best_prob;
+        } else {
+          (*probability)[label] = others;
+        }
+      }
+    } else {
+      for (const auto kv : hcpe3.candidates) {
+        const auto label = make_move_label(kv.first, position.turn());
+        assert(label < 9 * 9 * MAX_MOVE_LABEL_NUM);
+        (*probability)[label] = kv.second / hcpe3.count;
+      }
     }
 
     // game result
