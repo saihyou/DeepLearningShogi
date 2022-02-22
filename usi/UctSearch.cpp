@@ -675,6 +675,12 @@ FinalizeUctSearch(void)
 }
 
 void
+InitUctSearchStop(void)
+{
+	uct_search_stop = false;
+}
+
+void
 StopUctSearch(void)
 {
 #ifdef PV_MATE_SEARCH
@@ -899,7 +905,6 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 Move
 UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder)
 {
-	uct_search_stop = false;
 #ifdef PV_MATE_SEARCH
 	for (auto& searcher : pv_mate_searchers)
 		searcher.Stop(false);

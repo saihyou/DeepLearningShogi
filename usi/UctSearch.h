@@ -42,6 +42,9 @@ extern unsigned int current_root;
 // ノード数の上限
 extern unsigned int po_max;
 
+// UCT探索の停止フラグを初期化する
+void InitUctSearchStop(void);
+
 // 予測読みを止める
 void StopUctSearch(void);
 bool IsUctSearchStoped();
