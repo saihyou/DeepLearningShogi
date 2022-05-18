@@ -2,6 +2,21 @@
 #include <algorithm>
 
 #include "cppshogi.h"
+#include "progress.h"
+
+inline int piece_score(const Position& pos, const Bitboard& opponents_field,
+                       Color us, int own_pieces_count) {
+  const int own_big_pieces_count =
+      (pos.bbOf(Rook, Dragon, Bishop, Horse) & opponents_field & pos.bbOf(us))
+          .popCount();
+  const int own_small_pieces_count = own_pieces_count - own_big_pieces_count;
+  const Hand hand = pos.hand(us);
+  const int val =
+      own_small_pieces_count + hand.numOf<HPawn>() + hand.numOf<HLance>() +
+      hand.numOf<HKnight>() + hand.numOf<HSilver>() + hand.numOf<HGold>() +
+      (own_big_pieces_count + hand.numOf<HRook>() + hand.numOf<HBishop>()) * 5;
+  return val;
+}
 
 inline void set_features1(features1_t features1, const Color c, const int f1idx, const Square sq)
 {
@@ -120,6 +135,44 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 	if (position.inCheck()) {
 		set_features2(features2, MAX_FEATURES2_HAND_NUM);
 	}
+
+	int index = MAX_FEATURES2_HAND_NUM + 1;
+	const auto progress = g_progress.Estimate(position);
+	if (progress < 0.25) {
+		set_features2(features2, index);
+	} else if (progress < 0.75) {
+		set_features2(features2, index + 1);
+	} else {
+		set_features2(features2, index + 2);
+	}
+	index += 3;
+
+  	Color cc = position.turn();
+	for (int i = 0; i < 2; i++) {
+    	const Bitboard opponents_field =
+        (cc == Black ? inFrontMask<Black, Rank4>()
+                     : inFrontMask<White, Rank6>());
+		int king_in_opponents = 0;
+    	if (position.bbOf(King, cc).andIsAny(opponents_field)) {
+      		set_features2(features2, index);
+			king_in_opponents = 1;
+    	}
+    	index++;
+    	const int own_pieces_count =
+        	(position.bbOf(cc) & opponents_field).popCount() - king_in_opponents;
+		if (own_pieces_count >= 10) {
+    		set_features2(features2, index);
+		}
+    	index++;
+    	const int score =
+        	piece_score(position, opponents_field, cc, own_pieces_count);
+    	const int max_score = (cc == Black) ? 28 : 27;
+		if (score >= max_score) {
+    		set_features2(features2, index);
+		}
+    	index++;
+    	cc = oppositeColor(cc);
+  	}
 }
 
 void make_input_features(const Position& position, features1_t features1, features2_t features2) {

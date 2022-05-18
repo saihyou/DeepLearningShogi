@@ -24,6 +24,7 @@
 #include "mt64bit.hpp"
 #include "generateMoves.hpp"
 #include "search.hpp"
+#include "evaluate.h"
 
 Key Position::zobrist_[PieceTypeNum][SquareNum][ColorNum];
 Key Position::zobHand_[HandPieceNum][ColorNum];
@@ -346,6 +347,8 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
     newSt.previous = st_;
     st_ = &newSt;
 
+    st_->cl.size = 1;
+
     gamePly_++;
 
     const Color us = turn();
@@ -358,6 +361,21 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
 
         handKey -= zobHand(hpTo, us);
         boardKey += zobrist(ptTo, to, us);
+
+        const int handnum = hand(us).numOf(hpTo);
+        const int listIndex = evalList_.squareHandToList[HandPieceToSquareHand[us][hpTo] + handnum];
+        const Piece pcTo = colorAndPieceTypeToPiece(us, ptTo);
+        st_->cl.listindex[0] = listIndex;
+        st_->cl.clistpair[0].oldlist[0] = evalList_.list0[listIndex];
+        st_->cl.clistpair[0].oldlist[1] = evalList_.list1[listIndex];
+
+        evalList_.list0[listIndex] = kppArray[pcTo         ] + (EvalIndex)to;
+        evalList_.list1[listIndex] = kppArray[inverse(pcTo)] + (EvalIndex)inverse(to);
+        evalList_.listToSquareHand[listIndex] = to;
+        evalList_.squareHandToList[to] = listIndex;
+
+        st_->cl.clistpair[0].newlist[0] = evalList_.list0[listIndex];
+        st_->cl.clistpair[0].newlist[1] = evalList_.list1[listIndex];
 
         hand_[us].minusOne(hpTo);
         xorBBs(ptTo, to, us);
@@ -398,6 +416,21 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
             byColorBB_[them].xorBit(to);
 
             hand_[us].plusOne(hpCaptured);
+                        const int toListIndex = evalList_.squareHandToList[to];
+            st_->cl.listindex[1] = toListIndex;
+            st_->cl.clistpair[1].oldlist[0] = evalList_.list0[toListIndex];
+            st_->cl.clistpair[1].oldlist[1] = evalList_.list1[toListIndex];
+            st_->cl.size = 2;
+
+            const int handnum = hand(us).numOf(hpCaptured);
+            evalList_.list0[toListIndex] = kppHandArray[us  ][hpCaptured] + handnum;
+            evalList_.list1[toListIndex] = kppHandArray[them][hpCaptured] + handnum;
+            const Square squarehand = HandPieceToSquareHand[us][hpCaptured] + handnum;
+            evalList_.listToSquareHand[toListIndex] = squarehand;
+            evalList_.squareHandToList[squarehand]  = toListIndex;
+
+            st_->cl.clistpair[1].newlist[0] = evalList_.list0[toListIndex];
+            st_->cl.clistpair[1].newlist[1] = evalList_.list1[toListIndex];
         }
         // Occupied は to, from の位置のビットを操作するよりも、
         // Black と White の or を取る方が速いはず。
@@ -405,6 +438,22 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
 
         if (ptTo == King)
             kingSquare_[us] = to;
+        else {
+            const Piece pcTo = colorAndPieceTypeToPiece(us, ptTo);
+            const int fromListIndex = evalList_.squareHandToList[from];
+
+            st_->cl.listindex[0] = fromListIndex;
+            st_->cl.clistpair[0].oldlist[0] = evalList_.list0[fromListIndex];
+            st_->cl.clistpair[0].oldlist[1] = evalList_.list1[fromListIndex];
+
+            evalList_.list0[fromListIndex] = kppArray[pcTo         ] + (EvalIndex)to;
+            evalList_.list1[fromListIndex] = kppArray[inverse(pcTo)] + (EvalIndex)inverse(to);
+            evalList_.listToSquareHand[fromListIndex] = to;
+            evalList_.squareHandToList[to] = fromListIndex;
+
+            st_->cl.clistpair[0].newlist[0] = evalList_.list0[fromListIndex];
+            st_->cl.clistpair[0].newlist[1] = evalList_.list1[fromListIndex];
+        }
 
         if (moveIsCheck) {
             // Direct checks
@@ -464,6 +513,14 @@ void Position::undoMove(const Move move) {
 
         const HandPiece hp = pieceTypeToHandPiece(ptTo);
         hand_[us].plusOne(hp);
+
+        const int toListIndex  = evalList_.squareHandToList[to];
+        const int handnum = hand(us).numOf(hp);
+        evalList_.list0[toListIndex] = kppHandArray[us  ][hp] + handnum;
+        evalList_.list1[toListIndex] = kppHandArray[them][hp] + handnum;
+        const Square squarehand = HandPieceToSquareHand[us][hp] + handnum;
+        evalList_.listToSquareHand[toListIndex] = squarehand;
+        evalList_.squareHandToList[squarehand]  = toListIndex;
     }
     else {
         const Square from = move.from();
@@ -473,6 +530,14 @@ void Position::undoMove(const Move move) {
 
         if (ptTo == King)
             kingSquare_[us] = from;
+        else {
+            const Piece pcFrom = colorAndPieceTypeToPiece(us, ptFrom);
+            const int toListIndex = evalList_.squareHandToList[to];
+            evalList_.list0[toListIndex] = kppArray[pcFrom         ] + (EvalIndex)from;
+            evalList_.list1[toListIndex] = kppArray[inverse(pcFrom)] + (EvalIndex)inverse(from);
+            evalList_.listToSquareHand[toListIndex] = from;
+            evalList_.squareHandToList[from] = toListIndex;
+        }
 
         if (ptCaptured) {
             // 駒を取ったとき
@@ -481,6 +546,13 @@ void Position::undoMove(const Move move) {
             const HandPiece hpCaptured = pieceTypeToHandPiece(ptCaptured);
             const Piece pcCaptured = colorAndPieceTypeToPiece(them, ptCaptured);
             piece_[to] = pcCaptured;
+
+            const int handnum = hand(us).numOf(hpCaptured);
+            const int toListIndex = evalList_.squareHandToList[HandPieceToSquareHand[us][hpCaptured] + handnum];
+            evalList_.list0[toListIndex] = kppArray[pcCaptured         ] + (EvalIndex)to;
+            evalList_.list1[toListIndex] = kppArray[inverse(pcCaptured)] + (EvalIndex)inverse(to);
+            evalList_.listToSquareHand[toListIndex] = to;
+            evalList_.squareHandToList[to] = toListIndex;
 
             hand_[us].minusOne(hpCaptured);
         }
@@ -1900,6 +1972,7 @@ void Position::set(const std::string& sfen) {
     st_->handKey = computeHandKey();
     st_->hand = hand(turn());
 
+    setEvalList();
     findCheckers();
 
     return;
@@ -1965,6 +2038,7 @@ bool Position::set(const HuffmanCodedPos& hcp) {
     st_->handKey = computeHandKey();
     st_->hand = hand(turn());
 
+    setEvalList();
     findCheckers();
 
     return true;
@@ -2196,6 +2270,7 @@ void Position::set(std::mt19937& mt) {
     st_->handKey = computeHandKey();
     st_->hand = hand(turn());
 
+    setEvalList();
     findCheckers();
 }
 
