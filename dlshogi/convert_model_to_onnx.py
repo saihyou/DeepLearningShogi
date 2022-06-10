@@ -39,8 +39,9 @@ def main(*argv):
         move = np.empty((len(hcpevec)), dtype=np.int64)
         result = np.empty((len(hcpevec)), dtype=np.float32)
         value = np.empty((len(hcpevec)), dtype=np.float32)
+        legal_moves = np.empty((len(hcpevec), 9 * 9 * MAX_MOVE_LABEL_NUM), dtype=np.bool)
 
-        cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value)
+        cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value, legal_moves)
 
         z = result.astype(np.float32) - value + 0.5
 

@@ -30,17 +30,20 @@ inline T is_nyugyoku(const uint8_t result) {
 	return static_cast<T>(result & GAMERESULT_NYUGYOKU ? 1 : 0);
 }
 
-void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue) {
+void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue, char* ndlegal_moves) {
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove);
 	float *result = reinterpret_cast<float *>(ndresult);
 	float *value = reinterpret_cast<float *>(ndvalue);
+	auto legal_moves =
+      reinterpret_cast<bool(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlegal_moves);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
 	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
+	std::fill_n((bool *)legal_moves, 9 * 9 * MAX_MOVE_LABEL_NUM * len, false);
 
 	Position position;
 	for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++) {
@@ -57,6 +60,13 @@ void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1,
 
 		// eval
 		*value = score_to_value((Score)hcpe->eval);
+
+		MoveList<LegalAll> ml(position);
+    	for (; !ml.end(); ++ml) {
+      		auto m = static_cast<u16>(ml.move().value());
+      		const auto label = make_move_label(m, position.turn());
+      		(*legal_moves)[label] = true;
+    	}
 	}
 }
 
@@ -295,13 +305,15 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
-void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
+void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue, char* ndlegal_moves) {
 	unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
 	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability);
 	float* result = reinterpret_cast<float*>(ndresult);
 	float* value = reinterpret_cast<float*>(ndvalue);
+	auto legal_moves =
+      reinterpret_cast<bool(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlegal_moves);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -329,6 +341,13 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 
 		// eval
 		*value = score_to_value((Score)(hcpe3.eval / hcpe3.count));
+
+		MoveList<LegalAll> ml(position);
+    	for (; !ml.end(); ++ml) {
+      		auto m = static_cast<u16>(ml.move().value());
+      		const auto label = make_move_label(m, position.turn());
+      		(*legal_moves)[label] = true;
+    	}
 	}
 }
 

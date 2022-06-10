@@ -179,7 +179,7 @@ def main(*argv):
         sum_test_entropy2 = 0
         model.eval()
         with torch.no_grad():
-            for x1, x2, t1, t2, value in test_dataloader:
+            for x1, x2, t1, t2, value, _ in test_dataloader:
                 y1, y2 = model(x1, x2)
 
                 steps += 1
@@ -244,7 +244,7 @@ def main(*argv):
         sum_loss2_epoch = 0
         sum_loss3_epoch = 0
         sum_loss_epoch = 0
-        for x1, x2, t1, t2, value in train_dataloader:
+        for x1, x2, t1, t2, value, legal_moves in train_dataloader:
             t += 1
             steps += 1
             with torch.cuda.amp.autocast(enabled=args.use_amp):
@@ -252,6 +252,8 @@ def main(*argv):
 
                 y1, y2 = model(x1, x2)
 
+                illegal_filler = torch.zeros_like(y1) - 1.0e10
+                torch.where(legal_moves, y1, illegal_filler)
                 model.zero_grad()
                 loss1 = cross_entropy_loss_with_soft_target(y1, t1)
                 if args.use_critic:
@@ -284,7 +286,7 @@ def main(*argv):
             if t % eval_interval == 0:
                 model.eval()
 
-                x1, x2, t1, t2, value = test_dataloader.sample()
+                x1, x2, t1, t2, value, _ = test_dataloader.sample()
                 with torch.no_grad():
                     y1, y2 = model(x1, x2)
 
