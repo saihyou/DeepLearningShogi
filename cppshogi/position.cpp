@@ -25,6 +25,85 @@
 #include "generateMoves.hpp"
 #include "search.hpp"
 
+const Score PawnScore             = static_cast<Score>( 100 * 9 / 10);
+const Score LanceScore            = static_cast<Score>( 350 * 9 / 10);
+const Score KnightScore           = static_cast<Score>( 450 * 9 / 10);
+const Score SilverScore           = static_cast<Score>( 550 * 9 / 10);
+const Score GoldScore             = static_cast<Score>( 600 * 9 / 10);
+const Score BishopScore           = static_cast<Score>( 950 * 9 / 10);
+const Score RookScore             = static_cast<Score>(1100 * 9 / 10);
+const Score ProPawnScore          = static_cast<Score>( 600 * 9 / 10);
+const Score ProLanceScore         = static_cast<Score>( 600 * 9 / 10);
+const Score ProKnightScore        = static_cast<Score>( 600 * 9 / 10);
+const Score ProSilverScore        = static_cast<Score>( 600 * 9 / 10);
+const Score HorseScore            = static_cast<Score>(1050 * 9 / 10);
+const Score DragonScore           = static_cast<Score>(1550 * 9 / 10);
+
+const Score KingScore             = static_cast<Score>(15000);
+
+const Score CapturePawnScore      = PawnScore      * 2;
+const Score CaptureLanceScore     = LanceScore     * 2;
+const Score CaptureKnightScore    = KnightScore    * 2;
+const Score CaptureSilverScore    = SilverScore    * 2;
+const Score CaptureGoldScore      = GoldScore      * 2;
+const Score CaptureBishopScore    = BishopScore    * 2;
+const Score CaptureRookScore      = RookScore      * 2;
+const Score CaptureProPawnScore   = ProPawnScore   + PawnScore;
+const Score CaptureProLanceScore  = ProLanceScore  + LanceScore;
+const Score CaptureProKnightScore = ProKnightScore + KnightScore;
+const Score CaptureProSilverScore = ProSilverScore + SilverScore;
+const Score CaptureHorseScore     = HorseScore     + BishopScore;
+const Score CaptureDragonScore    = DragonScore    + RookScore;
+const Score CaptureKingScore      = KingScore      * 2;
+
+const Score PromotePawnScore      = ProPawnScore   - PawnScore;
+const Score PromoteLanceScore     = ProLanceScore  - LanceScore;
+const Score PromoteKnightScore    = ProKnightScore - KnightScore;
+const Score PromoteSilverScore    = ProSilverScore - SilverScore;
+const Score PromoteBishopScore    = HorseScore     - BishopScore;
+const Score PromoteRookScore      = DragonScore    - RookScore;
+
+const Score ScoreKnownWin = KingScore;
+
+extern const Score PieceScore[PieceNone];
+extern const Score CapturePieceScore[PieceNone];
+extern const Score PromotePieceScore[7];
+
+const Score PieceScore[PieceNone] = {
+    ScoreZero,
+    PawnScore, LanceScore, KnightScore, SilverScore, BishopScore, RookScore, GoldScore,
+    ScoreZero, // King
+    ProPawnScore, ProLanceScore, ProKnightScore, ProSilverScore, HorseScore, DragonScore,
+    ScoreZero, ScoreZero,
+    PawnScore, LanceScore, KnightScore, SilverScore, BishopScore, RookScore, GoldScore,
+    ScoreZero, // King
+    ProPawnScore, ProLanceScore, ProKnightScore, ProSilverScore, HorseScore, DragonScore,
+};
+const Score CapturePieceScore[PieceNone] = {
+    ScoreZero,
+    CapturePawnScore, CaptureLanceScore, CaptureKnightScore, CaptureSilverScore, CaptureBishopScore, CaptureRookScore, CaptureGoldScore,
+    ScoreZero, // King
+    CaptureProPawnScore, CaptureProLanceScore, CaptureProKnightScore, CaptureProSilverScore, CaptureHorseScore, CaptureDragonScore,
+    ScoreZero, ScoreZero,
+    CapturePawnScore, CaptureLanceScore, CaptureKnightScore, CaptureSilverScore, CaptureBishopScore, CaptureRookScore, CaptureGoldScore,
+    ScoreZero, // King
+    CaptureProPawnScore, CaptureProLanceScore, CaptureProKnightScore, CaptureProSilverScore, CaptureHorseScore, CaptureDragonScore,
+};
+const Score PromotePieceScore[7] = {
+    ScoreZero,
+    PromotePawnScore, PromoteLanceScore, PromoteKnightScore,
+    PromoteSilverScore, PromoteBishopScore, PromoteRookScore
+};
+
+inline Score pieceScore(const Piece pc) { return PieceScore[pc]; }
+inline Score pieceScore(const PieceType pt) { return PieceScore[pt]; }
+inline Score capturePieceScore(const Piece pc) { return CapturePieceScore[pc]; }
+inline Score capturePieceScore(const PieceType pt) { return CapturePieceScore[pt]; }
+inline Score promotePieceScore(const PieceType pt) {
+    assert(pt < Gold);
+    return PromotePieceScore[pt];
+}
+
 Key Position::zobrist_[PieceTypeNum][SquareNum][ColorNum];
 Key Position::zobHand_[HandPieceNum][ColorNum];
 
@@ -447,6 +526,42 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
     assert(isOK());
 }
 
+void Position::doNullMove(StateInfo& backUpSt) {
+    assert(!inCheck());
+
+    StateInfo* src = st_;
+    StateInfo* dst = &backUpSt;
+
+    dst->boardKey      = src->boardKey;
+    dst->handKey       = src->handKey;
+    dst->pliesFromNull = src->pliesFromNull;
+    dst->hand = hand(turn());
+    turn_ = oppositeColor(turn());
+
+    st_->boardKey ^= zobTurn();
+    st_->pliesFromNull = 0;
+    st_->continuousCheck[turn()] = 0;
+    st_->hand = hand(turn());
+
+    assert(isOK());
+}
+
+void Position::undoNullMove(StateInfo& backUpSt) {
+    assert(!inCheck());
+
+    StateInfo* src = &backUpSt;
+    StateInfo* dst = st_;
+
+    dst->boardKey      = src->boardKey;
+    dst->handKey       = src->handKey;
+    dst->pliesFromNull = src->pliesFromNull;
+    dst->hand = hand(turn());
+    turn_ = oppositeColor(turn());
+    st_->hand = hand(turn());
+
+    assert(isOK());
+}
+
 void Position::undoMove(const Move move) {
     assert(isOK());
     assert(move);
@@ -566,6 +681,85 @@ namespace {
     {
         return King;
     }
+}
+
+Score Position::see(const Move move, const int asymmThreshold) const {
+    const Square to = move.to();
+    Square from;
+    PieceType ptCaptured;
+    Bitboard occ = occupiedBB();
+    Bitboard attackers;
+    Bitboard opponentAttackers;
+    Color turn = oppositeColor(this->turn());
+    Score swapList[32];
+    if (move.isDrop()) {
+        opponentAttackers = attackersTo(turn, to, occ);
+        if (!opponentAttackers)
+            return ScoreZero;
+        attackers = opponentAttackers | attackersTo(oppositeColor(turn), to, occ);
+        swapList[0] = ScoreZero;
+        ptCaptured = move.pieceTypeDropped();
+    }
+    else {
+        from = move.from();
+        occ.xorBit(from);
+        opponentAttackers = attackersTo(turn, to, occ);
+        if (!opponentAttackers) {
+            if (move.isPromotion()) {
+                const PieceType ptFrom = move.pieceTypeFrom();
+                return capturePieceScore(move.cap()) + promotePieceScore(ptFrom);
+            }
+            return capturePieceScore(move.cap());
+        }
+        attackers = opponentAttackers | attackersTo(oppositeColor(turn), to, occ);
+        swapList[0] = capturePieceScore(move.cap());
+        ptCaptured = move.pieceTypeFrom();
+        if (move.isPromotion()) {
+            const PieceType ptFrom = move.pieceTypeFrom();
+            swapList[0] += promotePieceScore(ptFrom);
+            ptCaptured += PTPromote;
+        }
+    }
+
+    int slIndex = 1;
+    do {
+        swapList[slIndex] = -swapList[slIndex - 1] + capturePieceScore(ptCaptured);
+
+        ptCaptured = nextAttacker<Pawn>(*this, to, opponentAttackers, occ, attackers, turn);
+
+        attackers &= occ;
+        ++slIndex;
+        turn = oppositeColor(turn);
+        opponentAttackers = attackers & bbOf(turn);
+
+        if (ptCaptured == King) {
+            if (opponentAttackers)
+                swapList[slIndex++] = CaptureKingScore;
+            break;
+        }
+    } while (opponentAttackers);
+
+    if (asymmThreshold) {
+        for (int i = 0; i < slIndex; i += 2) {
+            if (swapList[i] < asymmThreshold)
+                swapList[i] = -CaptureKingScore;
+        }
+    }
+
+    // nega max 的に駒の取り合いの点数を求める。
+    while (--slIndex)
+        swapList[slIndex-1] = std::min(-swapList[slIndex], swapList[slIndex-1]);
+    return swapList[0];
+}
+
+Score Position::seeSign(const Move move) const {
+    if (move.isCapture()) {
+        const PieceType ptFrom = move.pieceTypeFrom();
+        const Square to = move.to();
+        if (capturePieceScore(ptFrom) <= capturePieceScore(piece(to)))
+            return static_cast<Score>(1);
+    }
+    return see(move);
 }
 
 namespace {

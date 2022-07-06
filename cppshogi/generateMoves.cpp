@@ -1133,7 +1133,7 @@ ExtMove* generateMoves(ExtMove* moveList, const Position& pos, const Square to) 
 // 実体が無いためにリンクエラーになる。
 // ちなみに、特殊化されたテンプレート関数は、明示的なインスタンス化の必要はない。
 // 実装を cpp に置くことで、コンパイル時間の短縮が出来る。
-//template ExtMove* generateMoves<Capture           >(ExtMove* moveList, const Position& pos);
+template ExtMove* generateMoves<Capture           >(ExtMove* moveList, const Position& pos);
 //template ExtMove* generateMoves<NonCapture        >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<Drop              >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<CapturePlusPro    >(ExtMove* moveList, const Position& pos);

@@ -77,6 +77,7 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		});
 	});
 
+
 	for (Color c = Black; c < ColorNum; ++c) {
 		// 後手の場合、色を反転
 		const Color c2 = turn == Black ? c : oppositeColor(c);
@@ -113,6 +114,34 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 			}
 			set_features2(features2, c2, p, num);
 			p += MAX_PIECES_IN_HAND[hp];
+		}
+	}
+
+	int seeIndex = PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM;
+	for (Color c = Black; c < ColorNum; ++c) {
+		Position pos(position);
+		bool nullMoved = false;
+		int offset = 0;
+		StateInfo st;
+		if (c != pos.turn()) {
+			pos.doNullMove(st);
+			nullMoved = true;
+			offset = 2;
+		}
+		for (MoveList<Capture> ml(pos); !ml.end(); ++ml) {
+			if (pos.seeSign(ml.move())) {
+				Square from = ml.move().from();
+				Square to = ml.move().to();
+				if (turn == White) {
+					from = SQ99 - from;
+					to = SQ99 - to;
+				}
+				set_features1(features1, c, seeIndex + offset, from);
+				set_features1(features1, c, seeIndex + offset + 1, to);
+			}
+    	}
+		if (nullMoved) {
+			pos.undoNullMove(st);
 		}
 	}
 

@@ -374,6 +374,11 @@ public:
     void doMove(const Move move, StateInfo& newSt);
     void doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, const bool moveIsCheck);
     void undoMove(const Move move);
+    void doNullMove(StateInfo& backUpSt);
+    void undoNullMove(StateInfo& backUpSt);
+
+    Score see(const Move move, const int asymmThreshold = 0) const;
+    Score seeSign(const Move move) const;
 
     template <Color US> Move mateMoveIn1Ply();
     Move mateMoveIn1Ply();
