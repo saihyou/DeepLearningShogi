@@ -123,6 +123,9 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		bool nullMoved = false;
 		int offset = 0;
 		StateInfo st;
+		if (c != pos.turn() && pos.inCheck()) {
+			continue;
+		}
 		if (c != pos.turn()) {
 			pos.doNullMove(st);
 			nullMoved = true;
