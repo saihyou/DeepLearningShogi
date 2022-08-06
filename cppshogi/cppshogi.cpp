@@ -118,19 +118,10 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 	}
 
 	int seeIndex = PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM;
-	for (Color c = Black; c < ColorNum; ++c) {
+	{
 		Position pos(position);
-		bool nullMoved = false;
 		int offset = 0;
 		StateInfo st;
-		if (c != pos.turn() && pos.inCheck()) {
-			continue;
-		}
-		if (c != pos.turn()) {
-			pos.doNullMove(st);
-			nullMoved = true;
-			offset = 2;
-		}
 		for (MoveList<Capture> ml(pos); !ml.end(); ++ml) {
 			if (pos.seeSign(ml.move())) {
 				Square from = ml.move().from();
@@ -139,13 +130,10 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 					from = SQ99 - from;
 					to = SQ99 - to;
 				}
-				set_features1(features1, c, seeIndex + offset, from);
-				set_features1(features1, c, seeIndex + offset + 1, to);
+				set_features1(features1, c, seeIndex, from);
+				set_features1(features1, c, seeIndex + 1, to);
 			}
     	}
-		if (nullMoved) {
-			pos.undoNullMove(st);
-		}
 	}
 
 	// is check
