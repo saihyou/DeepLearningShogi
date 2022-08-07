@@ -51,6 +51,8 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		const PieceType pt = pieceToPieceType(pc);
 		Color c = pieceToColor(pc);
 		Bitboard attacks = Position::attacksFrom(pt, c, sq, occupied_bb);
+		Bitboard shadow = (pt == Lance || pt == Bishop || pt == Rook || pt == Horse || pt == Dragon) ?
+			Position::attacksFrom(pt, c, sq, allZeroBB()) ^ attacks : allZeroBB();
 
 		// 後手の場合、色を反転し、盤面を180度回転
 		if (turn == White) {
@@ -75,6 +77,16 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 				num++;
 			}
 		});
+		if (pt == Lance || pt == Bishop || pt == Rook || pt == Horse || pt == Dragon) {
+			int offset = (pt == Lance) ? 0 : (pt == Bishop) ? 1 : (pt == Rook) ? 2 : (pt == Horse) ? 3 : 4;
+			FOREACH_BB(shadow, Square to, {
+				// 後手の場合、盤面を180度回転
+				if (turn == White) to = SQ99 - to;
+
+				// 駒の利き
+				set_features1(features1, c, PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM + offset, to);
+			});
+		}
 	});
 
 	for (Color c = Black; c < ColorNum; ++c) {
