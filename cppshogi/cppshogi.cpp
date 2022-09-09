@@ -18,6 +18,38 @@ inline int piece_score(const Position& pos, const Bitboard& opponents_field,
   return val;
 }
 
+template <Color kUs>
+Bitboard MakePawnDropBB(const Position& pos) {
+  Bitboard target = pos.emptyBB();
+  // 一段目には打てない
+  constexpr Rank TRank1 = (kUs == Black ? Rank1 : Rank9);
+  target.andEqualNot(rankMask<TRank1>());
+
+  // 二歩の回避
+  Bitboard pawnsBB = pos.bbOf(Pawn, kUs);
+  Square pawnsSquare;
+  foreachBB(pawnsBB, pawnsSquare, [&](const int part) {
+    target.set(part, target.p(part) & ~squareFileMask(pawnsSquare).p(part));
+  });
+
+  // 打ち歩詰めの回避
+  constexpr Rank TRank9 = (kUs == Black ? Rank9 : Rank1);
+  constexpr SquareDelta TDeltaS = (kUs == Black ? DeltaS : DeltaN);
+
+  const Square ksq = pos.kingSquare(oppositeColor(kUs));
+  // 相手玉が九段目なら、歩で王手出来ないので、打ち歩詰めを調べる必要はない。
+  if (makeRank(ksq) != TRank9) {
+    const Square pawnDropCheckSquare = ksq + TDeltaS;
+    assert(isInSquare(pawnDropCheckSquare));
+    if (target.isSet(pawnDropCheckSquare) &&
+        pos.piece(pawnDropCheckSquare) == Empty) {
+      if (pos.isPawnDropCheckMate(kUs, pawnDropCheckSquare))
+        target.clearBit(pawnDropCheckSquare);
+    }
+  }
+  return target;
+}
+
 inline void set_features1(features1_t features1, const Color c, const int f1idx, const Square sq)
 {
 	features1[c][f1idx][sq] = _one;
@@ -49,10 +81,21 @@ inline void set_features2(packed_features2_t packed_features2, const int f2idx)
 	packed_features2[f2idx >> 3] |= (1 << (f2idx & 7));
 }
 
+inline void set_features2(features2_t features2, const int index, const Square sq)
+{
+	features2[index][sq] = _one;
+}
+inline void set_features2(packed_features2_t packed_features2, const int index, const Square sq)
+{
+	const int idx = (int)SquareNum * index + sq;
+	packed_features2[idx >> 3] |= (1 << (idx & 7));
+}
+
 // make input features
 template <Color turn, typename T1 = features1_t, typename T2 = features2_t>
 inline void make_input_features(const Position& position, T1 features1, T2 features2) {
-	const Bitboard occupied_bb = position.occupiedBB();
+	Bitboard occupied_bb = position.occupiedBB();
+	Bitboard pawn_dropable[] = {MakePawnDropBB<Black>(position), MakePawnDropBB<White>(position)};
 
 	// 歩と歩以外に分ける
 	Bitboard pawns_bb = position.bbOf(Pawn);
@@ -66,6 +109,8 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		const PieceType pt = pieceToPieceType(pc);
 		Color c = pieceToColor(pc);
 		Bitboard attacks = Position::attacksFrom(pt, c, sq, occupied_bb);
+		Bitboard shadow = (pt == Lance || pt == Bishop || pt == Rook || pt == Horse || pt == Dragon) ?
+			Position::attacksFrom(pt, c, sq, allZeroBB()) ^ attacks : allZeroBB();
 
 		// 後手の場合、色を反転し、盤面を180度回転
 		if (turn == White) {
@@ -90,6 +135,16 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 				num++;
 			}
 		});
+		if (pt == Lance || pt == Bishop || pt == Rook || pt == Horse || pt == Dragon) {
+			int offset = (pt == Lance) ? 0 : (pt == Bishop) ? 1 : (pt == Rook) ? 2 : (pt == Horse) ? 3 : 4;
+			FOREACH_BB(shadow, Square to, {
+				// 後手の場合、盤面を180度回転
+				if (turn == White) to = SQ99 - to;
+
+				// 駒の利き
+				set_features1(features1, c, PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM + offset, to);
+			});
+		}
 	});
 
 	for (Color c = Black; c < ColorNum; ++c) {
@@ -129,25 +184,36 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 			set_features2(features2, c2, p, num);
 			p += MAX_PIECES_IN_HAND[hp];
 		}
+		FOREACH_BB(pawn_dropable[c2], Square sq, {
+			if (turn == White) sq = SQ99 - sq;
+			set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2, sq);
+		});
 	}
-
 	// is check
 	if (position.inCheck()) {
 		set_features2(features2, MAX_FEATURES2_HAND_NUM);
 	}
-
-	int index = MAX_FEATURES2_HAND_NUM + 1;
+	int index = MAX_FEATURES2_HAND_NUM + 1 + 2 + 1;
+	Bitboard empty = position.emptyBB();
+	FOREACH_BB(empty, Square sq, {
+		if (turn == White) sq = SQ99 - sq;
+		set_features2(features2, index, sq);
+	});
+	index++;
+	Bitboard checkers_bb = position.checkersBB();
+	FOREACH_BB(checkers_bb, Square sq, {
+		if (turn == White) sq = SQ99 - sq;
+		set_features2(features2, index, sq);
+	});
+	index++;
 	const auto progress = g_progress.Estimate(position);
 	if (progress < 0.25) {
 		set_features2(features2, index);
-	} else if (progress < 0.75) {
+	} else if (progress > 0.75) {
 		set_features2(features2, index + 1);
-	} else {
-		set_features2(features2, index + 2);
 	}
-	index += 3;
-
-  	Color cc = position.turn();
+	index += 2;
+	Color cc = position.turn();
 	for (int i = 0; i < 2; i++) {
     	const Bitboard opponents_field =
         (cc == Black ? inFrontMask<Black, Rank4>()
