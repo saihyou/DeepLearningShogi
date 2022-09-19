@@ -81,16 +81,6 @@ inline void set_features2(packed_features2_t packed_features2, const int f2idx)
 	packed_features2[f2idx >> 3] |= (1 << (f2idx & 7));
 }
 
-inline void set_features2(features2_t features2, const int index, const Square sq)
-{
-	features2[index][sq] = _one;
-}
-inline void set_features2(packed_features2_t packed_features2, const int index, const Square sq)
-{
-	const int idx = (int)SquareNum * index + sq;
-	packed_features2[idx >> 3] |= (1 << (idx & 7));
-}
-
 // make input features
 template <Color turn, typename T1 = features1_t, typename T2 = features2_t>
 inline void make_input_features(const Position& position, T1 features1, T2 features2) {
@@ -186,26 +176,25 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		}
 		FOREACH_BB(pawn_dropable[c2], Square sq, {
 			if (turn == White) sq = SQ99 - sq;
-			set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2, sq);
+			set_features1(features1, c, PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM + LONG_SHADOW_NUM, sq);
 		});
 	}
 	// is check
 	if (position.inCheck()) {
 		set_features2(features2, MAX_FEATURES2_HAND_NUM);
 	}
-	int index = MAX_FEATURES2_HAND_NUM + 1 + 2 + 1;
+
 	Bitboard empty = position.emptyBB();
 	FOREACH_BB(empty, Square sq, {
 		if (turn == White) sq = SQ99 - sq;
-		set_features2(features2, index, sq);
+		set_features1(features1, Black, PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM + LONG_SHADOW_NUM + 1, sq);
 	});
-	index++;
 	Bitboard checkers_bb = position.checkersBB();
 	FOREACH_BB(checkers_bb, Square sq, {
 		if (turn == White) sq = SQ99 - sq;
-		set_features2(features2, index, sq);
+		set_features1(features1, White, PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM + LONG_SHADOW_NUM + 1, sq);
 	});
-	index++;
+	int index = MAX_FEATURES2_HAND_NUM + 1;
 	const auto progress = g_progress.Estimate(position);
 	if (progress < 0.25) {
 		set_features2(features2, index);

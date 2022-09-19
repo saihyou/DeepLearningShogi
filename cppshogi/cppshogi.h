@@ -31,8 +31,8 @@ constexpr u32 MAX_FEATURES2_HAND_NUM = (int)ColorNum * MAX_PIECES_IN_HAND_SUM;
 constexpr int PIECETYPE_NUM = 14; // 駒の種類
 constexpr int MAX_ATTACK_NUM = 3; // 利き数の最大値
 constexpr int LONG_SHADOW_NUM = 5;
-constexpr u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/ + LONG_SHADOW_NUM;
-constexpr u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/ + 2 /* 歩が打てる場所 */ + 1 /* empty */ + 1 /* checker */ + 3 * 2 /* 入玉 */ + 2 /* 進行度 */;;
+constexpr u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/ + LONG_SHADOW_NUM + 1 /* empty + checker */ + 1 /* 歩が打てる場所 */;
+constexpr u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/ + 3 * 2 /* 入玉 */ + 2 /* 進行度 */;;
 
 // 移動の定数
 enum MOVE_DIRECTION {
