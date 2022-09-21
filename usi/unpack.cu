@@ -29,13 +29,12 @@ __global__ void unpack_features1_kernel(char* p1, FType* x1) {
 __global__ void unpack_features2_kernel(char* p2, FType* x2) {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-	int j = sizeof(packed_features2_t) * 8 * blockIdx.x + threadIdx.x;
-	FType v = (-(FType)((p2[j >> 3] >> (j & 7)) & 1)) & one;
-
+	int j = sizeof(packed_features2_t) * 8 * blockIdx.x + threadIdx.x * 81;
 	int x2_offset = tid * 81;
 #pragma unroll
 	for (int i = 0; i < 81; ++i) {
-		x2[x2_offset + i] = v;
+		int j = p2_offset + i;
+		x2[x2_offset + i] = (-(FType)((p1[j >> 3] >> (j & 7)) & 1)) & one;
 	}
 }
 

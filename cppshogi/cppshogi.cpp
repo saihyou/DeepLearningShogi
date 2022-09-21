@@ -67,8 +67,10 @@ inline void set_features2(features2_t features2, const Color c, const int f2idx,
 inline void set_features2(packed_features2_t packed_features2, const Color c, const int f2idx, const u32 num)
 {
 	for (u32 i = 0; i < num; ++i) {
-		const int idx = MAX_PIECES_IN_HAND_SUM * (int)c + f2idx + i;
-		packed_features2[idx >> 3] |= (1 << (idx & 7));
+		const int idx = (MAX_PIECES_IN_HAND_SUM * (int)c + f2idx + i) * (int)SquareNum;
+		for (u32 j = 0; j < 81; ++j) {
+			packed_features2[(idx + j) >> 3] |= (1 << ((idx + j) & 7));
+		}
 	}
 }
 
@@ -78,7 +80,10 @@ inline void set_features2(features2_t features2, const int f2idx)
 }
 inline void set_features2(packed_features2_t packed_features2, const int f2idx)
 {
-	packed_features2[f2idx >> 3] |= (1 << (f2idx & 7));
+	u32 index = f2idx * (u32)SquareNum;
+	for (u32 j = 0; j < 81; ++j) {
+		packed_features2[(index + j) >> 3] |= (1 << ((f2idx + j) & 7));
+	}
 }
 
 inline void set_features2(features2_t features2, const int index, const Square sq)
@@ -193,7 +198,7 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 	if (position.inCheck()) {
 		set_features2(features2, MAX_FEATURES2_HAND_NUM);
 	}
-	int index = MAX_FEATURES2_HAND_NUM + 1 + 2 + 1;
+	int index = MAX_FEATURES2_HAND_NUM + 1 + 2;
 	Bitboard empty = position.emptyBB();
 	FOREACH_BB(empty, Square sq, {
 		if (turn == White) sq = SQ99 - sq;
