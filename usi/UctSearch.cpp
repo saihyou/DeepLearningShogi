@@ -193,6 +193,9 @@ std::uniform_real_distribution<float> random2_dist(0.0f, 1.0f);
 std::vector<PvMateSearcher> pv_mate_searchers;
 #endif
 
+// 通常探索で詰みを見つけたら探索を打ち切るか
+bool early_stop_find_mate = false;
+
 ////////////
 //  関数  //
 ////////////
@@ -637,6 +640,11 @@ void SetRandomMove2(const int ply, const int probability, const int temperature,
 		std::random_device seed_gen;
 		random_mt_64.reset(new std::mt19937_64(seed_gen()));
 	}
+}
+
+void SetEarlyStopFindMate(bool value)
+{
+	early_stop_find_mate = value;
 }
 
 /////////////////////////
@@ -1182,12 +1190,7 @@ inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* c
 static bool
 InterruptionCheck(void)
 {
-	// 消費時間が短い場合は打ち止めしない
 	const auto spend_time = begin_time.elapsed();
-	if (spend_time * 10 < time_limit || spend_time < minimum_time) {
-		return false;
-	}
-
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const child_node_t* uct_child = current_root->child.get();
 
@@ -1196,9 +1199,22 @@ InterruptionCheck(void)
 	int max_index, second_index;
 	std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
 
-	// 詰みが見つかった場合は探索を打ち切る
-	if (uct_child[max_index].IsLose())
-		return true;
+	if (early_stop_find_mate) {
+		// 消費時間が短くても詰みを見つけたら早期に打ち切る
+		if (uct_child[max_index].IsLose() || uct_child[max_index].IsWin())
+			return true;
+
+		if ((spend_time * 10 < time_limit || spend_time < minimum_time))
+			return false;
+	} else {
+		// 消費時間が短い場合は打ち止めしない
+		if ((spend_time * 10 < time_limit || spend_time < minimum_time)) {
+			return false;
+		}
+
+		if (uct_child[max_index].IsLose())
+			return true;
+	}
 
 	// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
 	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);

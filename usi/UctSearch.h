@@ -102,6 +102,9 @@ void SetEvalCoef(const int eval_coef);
 void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop);
 void SetRandomMove2(const int ply, const int probability, const int temperature, const int cutoff, const int value_limit);
 
+// 詰みの時の早期打ち切りの設定
+void SetEarlyStopFindMate(bool value);
+
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);
 
